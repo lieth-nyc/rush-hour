@@ -52,6 +52,8 @@
     gap: 6px;
     margin-bottom: 10px;
     justify-content: center;
+    padding: 5px;
+    overflow: visible;
   }
   .level-btn {
     width: 36px; height: 36px;
@@ -68,11 +70,11 @@
     justify-content: center;
   }
   .level-btn:hover { border-color: #e94560; color: #eee; }
-  .level-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+  .level-btn.active { background: #16213e; color: #eee; border-color: #e94560; box-shadow: 0 0 0 2px #e94560; z-index: 1; }
   .level-btn.solved { background: #27ae60; color: #fff; border-color: #27ae60; }
-  .level-btn.solved.active { background: #e94560; border-color: #e94560; }
-  .level-btn .star { font-size: 0.55rem; position: absolute; top: -2px; right: -1px; }
-  .level-btn { position: relative; }
+  .level-btn.solved.active { background: #27ae60; color: #fff; border-color: #e94560; box-shadow: 0 0 0 2px #e94560; z-index: 1; }
+  .level-btn .star { font-size: 0.55rem; position: absolute; top: -4px; right: -3px; z-index: 1; }
+  .level-btn { position: relative; overflow: visible; }
 
   #status-bar {
     display: flex;
@@ -83,6 +85,50 @@
   #status-bar span { color: #aaa; }
   #status-bar strong { color: #eee; }
 
+  #game-area {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: center;
+    position: relative;
+  }
+  #game-area #rules-panel {
+    position: absolute;
+    right: calc(50% + 237px + 18px);
+  }
+  #game-area #notation-panel {
+    position: absolute;
+    left: calc(50% + 237px + 18px);
+  }
+  #rules-panel {
+    width: 180px;
+    background: #16213e;
+    border: 2px solid #0f3460;
+    border-radius: 8px;
+    padding: 14px 14px 10px;
+    font-size: 0.78rem;
+    color: #999;
+    line-height: 1.5;
+  }
+  #rules-panel h3 {
+    color: #ccc;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #rules-panel ol {
+    padding-left: 18px;
+    margin: 0;
+  }
+  #rules-panel li {
+    margin-bottom: 8px;
+  }
+  #rules-panel .rule-highlight {
+    color: #e94560;
+    font-weight: 600;
+  }
   #board-wrapper {
     display: grid;
     grid-template-columns: 20px 426px 28px;
@@ -90,6 +136,82 @@
     gap: 0;
     align-items: center;
     justify-items: center;
+  }
+  #notation-panel {
+    width: 180px;
+    max-height: 466px;
+    display: flex;
+    flex-direction: column;
+    background: #16213e;
+    border: 2px solid #0f3460;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #notation-panel .panel-header {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #aaa;
+    border-bottom: 1px solid #0f3460;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  #notation-panel .panel-header.solution-header {
+    color: #48c774;
+  }
+  #notation-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+  #notation-body::-webkit-scrollbar { width: 5px; }
+  #notation-body::-webkit-scrollbar-track { background: #16213e; }
+  #notation-body::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+  #notation-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  #notation-table tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  #notation-table tr.current-move {
+    background: rgba(233,69,96,0.15);
+  }
+  #notation-table td {
+    padding: 3px 10px;
+    color: #ccc;
+  }
+  #notation-table td:first-child {
+    color: #666;
+    text-align: right;
+    width: 30px;
+    font-size: 0.75rem;
+  }
+  #notation-table .vehicle-label {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    text-align: center;
+    line-height: 16px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(0,0,0,0.5);
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  #notation-table .move-text {
+    vertical-align: middle;
+  }
+  #notation-empty {
+    padding: 20px 12px;
+    text-align: center;
+    color: #556;
+    font-size: 0.8rem;
+    font-style: italic;
   }
   #row-labels {
     display: flex;
@@ -192,8 +314,39 @@
   #btn-solution { background: #2d6a4f; }
   #btn-solution:hover { background: #40916c; }
   #btn-solution.playing { background: #d35400; cursor: not-allowed; }
-  #btn-reset-progress { background: #6b1a1a; font-size: 0.85rem; padding: 9px 14px; }
-  #btn-reset-progress:hover { background: #a33; }
+  #reset-area {
+    margin-top: 10px;
+    text-align: center;
+  }
+  #btn-reset-progress {
+    background: none;
+    border: none;
+    color: #665;
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  #btn-reset-progress:hover { background: none; color: #a33; }
+  #reset-confirm {
+    display: none;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    color: #e94560;
+  }
+  #reset-confirm.show { display: flex; }
+  #reset-confirm button {
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+  }
+  #reset-confirm .confirm-yes { background: #a33; }
+  #reset-confirm .confirm-yes:hover { background: #c44; }
+  #reset-confirm .confirm-no { background: #444; }
+  #reset-confirm .confirm-no:hover { background: #666; }
   .vehicle.solution-move {
     transition: left 0.57s ease-in-out, top 0.57s ease-in-out;
   }
@@ -254,19 +407,38 @@
   <span>Optimal: <strong id="optimal-count">-</strong></span>
 </div>
 
-<div id="board-wrapper">
-  <div id="row-labels">
-    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+<div id="game-area">
+  <div id="rules-panel">
+    <h3>How to Play</h3>
+    <ol>
+      <li>Slide the <span class="rule-highlight">red car (X)</span> to the right exit.</li>
+      <li>Vehicles move only along their orientation &mdash; horizontal or vertical.</li>
+      <li>Vehicles cannot pass through each other.</li>
+      <li>Clear a path by sliding blocking vehicles out of the way.</li>
+      <li>Try to solve it in as few moves as possible!</li>
+    </ol>
   </div>
-  <div id="board">
-    <div class="cell-grid" id="grid"></div>
+  <div id="board-wrapper">
+    <div id="row-labels">
+      <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+    </div>
+    <div id="board">
+      <div class="cell-grid" id="grid"></div>
+    </div>
+    <div id="exit-arrow">&#9654;</div>
+    <div></div>
+    <div id="col-labels">
+      <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span>
+    </div>
+    <div></div>
   </div>
-  <div id="exit-arrow">&#9654;</div>
-  <div></div>
-  <div id="col-labels">
-    <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span>
+  <div id="notation-panel">
+    <div class="panel-header" id="notation-header">Moves</div>
+    <div id="notation-body">
+      <div id="notation-empty">No moves yet</div>
+      <table id="notation-table"></table>
+    </div>
   </div>
-  <div></div>
 </div>
 
 <div id="controls">
@@ -275,7 +447,14 @@
   <button onclick="nextLevelBtn()">Next &rarr;</button>
   <button onclick="showHint()">&#x1F4A1; Hint</button>
   <button id="btn-solution" onclick="playSolution()">&#x25B6; Solution</button>
-  <button id="btn-reset-progress" onclick="resetProgress()">Reset Progress</button>
+</div>
+<div id="reset-area">
+  <button id="btn-reset-progress" onclick="showResetConfirm()">Reset Progress</button>
+  <div id="reset-confirm">
+    <span>Are you sure?</span>
+    <button class="confirm-yes" onclick="confirmReset()">Yes, reset</button>
+    <button class="confirm-no" onclick="hideResetConfirm()">Cancel</button>
+  </div>
 </div>
 
 <div id="confetti-container"></div>
@@ -1910,6 +2089,49 @@ let dragging = null;
 let solutionPlaying = false;
 let solved = {}; // key: "difficulty-idx" -> best moves
 let bestMoves = {}; // key: "difficulty-idx" -> best score
+let moveHistory = []; // {idx, from, to, ori}
+const VEHICLE_LABELS = 'XABCDEFGHIJKLMNO';
+const COL_LETTERS = 'abcdef';
+
+function vehicleLabel(idx) { return VEHICLE_LABELS[idx] || String(idx); }
+
+function moveNotation(entry) {
+  const label = vehicleLabel(entry.idx);
+  if (entry.ori === 'h') {
+    const arrow = entry.to > entry.from ? '\u2192' : '\u2190';
+    return label + ' ' + arrow + ' ' + COL_LETTERS[entry.to];
+  } else {
+    const arrow = entry.to > entry.from ? '\u2193' : '\u2191';
+    return label + ' ' + arrow + ' ' + (entry.to + 1);
+  }
+}
+
+function renderNotation(entries, isSolution) {
+  const header = document.getElementById('notation-header');
+  const empty = document.getElementById('notation-empty');
+  const table = document.getElementById('notation-table');
+  const body = document.getElementById('notation-body');
+
+  header.textContent = isSolution ? 'Solution' : 'Moves';
+  header.className = 'panel-header' + (isSolution ? ' solution-header' : '');
+
+  if (entries.length === 0) {
+    empty.style.display = '';
+    table.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  table.innerHTML = entries.map((e, i) => {
+    const color = COLORS[e.idx % COLORS.length];
+    return '<tr' + (i === entries.length - 1 ? ' class="current-move"' : '') + '>' +
+      '<td>' + (i + 1) + '.</td>' +
+      '<td><span class="vehicle-label" style="background:' + color + '">' +
+      vehicleLabel(e.idx) + '</span><span class="move-text">' +
+      moveNotation(e) + '</span></td></tr>';
+  }).join('');
+  // Auto-scroll to bottom
+  body.scrollTop = body.scrollHeight;
+}
 
 // Load saved progress
 try {
@@ -2013,6 +2235,7 @@ function render() {
   const key = currentDifficulty + '-' + currentLevelIdx;
   bestCountEl.textContent = bestMoves[key] || '-';
   optimalCountEl.textContent = currentOptimal > 0 ? currentOptimal : '-';
+  renderNotation(moveHistory, false);
 }
 
 function onPointerDown(e) {
@@ -2087,10 +2310,16 @@ function onPointerUp(e) {
   const dy = e.clientY - dragging.startY;
   if (v.ori === 'h') {
     const newPos = clampPosition(idx, Math.round(dragging.origCol + dx / CELL));
-    if (newPos !== v.col) { v.col = newPos; moves++; }
+    if (newPos !== v.col) {
+      moveHistory.push({ idx, from: v.col, to: newPos, ori: 'h' });
+      v.col = newPos; moves++;
+    }
   } else {
     const newPos = clampPosition(idx, Math.round(dragging.origRow + dy / CELL));
-    if (newPos !== v.row) { v.row = newPos; moves++; }
+    if (newPos !== v.row) {
+      moveHistory.push({ idx, from: v.row, to: newPos, ori: 'v' });
+      v.row = newPos; moves++;
+    }
   }
   e.target.classList.remove('dragging');
   e.target.removeEventListener('pointermove', onPointerMove);
@@ -2122,6 +2351,7 @@ function checkWin() {
 function loadPuzzle() {
   winMsg.classList.remove('show');
   moves = 0;
+  moveHistory = [];
   const puzzles = allPuzzles[currentDifficulty];
   const p = puzzles[currentLevelIdx % puzzles.length];
   vehicles = p.vehicles.map(v => ({ row: v.row, col: v.col, len: v.len, ori: v.ori }));
@@ -2174,6 +2404,21 @@ function launchConfetti() {
   setTimeout(() => { container.innerHTML = ''; }, 4000);
 }
 
+function solutionToNotation(vehicleDefs, path) {
+  const entries = [];
+  for (let s = 1; s < path.length; s++) {
+    const prev = path[s - 1];
+    const cur = path[s];
+    for (let i = 0; i < cur.length; i++) {
+      if (cur[i] !== prev[i]) {
+        entries.push({ idx: i, from: prev[i], to: cur[i], ori: vehicleDefs[i].ori });
+        break;
+      }
+    }
+  }
+  return entries;
+}
+
 function playSolution() {
   if (solutionPlaying) return;
   // Restart puzzle first so we animate from the beginning
@@ -2181,11 +2426,16 @@ function playSolution() {
   const p = puzzles[currentLevelIdx % puzzles.length];
   vehicles = p.vehicles.map(v => ({ row: v.row, col: v.col, len: v.len, ori: v.ori }));
   moves = 0;
+  moveHistory = [];
   render();
 
   const curPos = vehicles.map(v => v.ori === 'h' ? v.col : v.row);
   const result = bfsSolve(p.vehicles, curPos, 'full');
   if (result.depth <= 0 || !result.path || result.path.length < 2) return;
+
+  // Build full solution notation and show it immediately
+  const solutionEntries = solutionToNotation(p.vehicles, result.path);
+  renderNotation(solutionEntries, true);
 
   solutionPlaying = true;
   const btn = document.getElementById('btn-solution');
@@ -2194,6 +2444,17 @@ function playSolution() {
 
   const path = result.path;
   let step = 1;
+
+  function highlightSolutionStep(stepIdx) {
+    const rows = document.querySelectorAll('#notation-table tr');
+    rows.forEach((r, i) => {
+      r.classList.toggle('current-move', i === stepIdx);
+    });
+    // Scroll the highlighted row into view
+    if (rows[stepIdx]) {
+      rows[stepIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
 
   function animateStep() {
     if (step >= path.length) {
@@ -2218,6 +2479,9 @@ function playSolution() {
     else v.row = cur[movedIdx];
     moves++;
     moveCountEl.textContent = moves;
+
+    // Highlight current step in solution table
+    highlightSolutionStep(step - 1);
 
     // Animate the DOM element
     const els = board.querySelectorAll('.vehicle');
@@ -2288,13 +2552,21 @@ function showHint() {
   }, 2500);
 }
 
-function resetProgress() {
-  if (!confirm('Clear all progress? This will reset solved levels and best scores.')) return;
+function showResetConfirm() {
+  document.getElementById('btn-reset-progress').style.display = 'none';
+  document.getElementById('reset-confirm').classList.add('show');
+}
+function hideResetConfirm() {
+  document.getElementById('reset-confirm').classList.remove('show');
+  document.getElementById('btn-reset-progress').style.display = '';
+}
+function confirmReset() {
   solved = {};
   bestMoves = {};
   saveProgress();
   updateLevelBar();
   render();
+  hideResetConfirm();
 }
 
 // Init
