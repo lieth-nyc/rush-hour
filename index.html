@@ -1,0 +1,2306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rush Hour</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  h1 { margin-bottom: 6px; font-size: 2rem; color: #e94560; }
+  #info { margin-bottom: 10px; font-size: 0.95rem; color: #aaa; }
+
+  /* Difficulty tabs */
+  #difficulty-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #0f3460;
+  }
+  .diff-tab {
+    padding: 8px 20px;
+    background: #16213e;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .diff-tab:not(:last-child) { border-right: 1px solid #0f3460; }
+  .diff-tab:hover { background: #1a2a4e; color: #eee; }
+  .diff-tab.active-beginner { background: #27ae60; color: #fff; }
+  .diff-tab.active-intermediate { background: #f39c12; color: #fff; }
+  .diff-tab.active-advanced { background: #e74c3c; color: #fff; }
+  .diff-tab.active-expert { background: #8e44ad; color: #fff; }
+
+  /* Level selector */
+  #level-bar {
+    display: grid;
+    grid-template-columns: repeat(10, 36px);
+    gap: 6px;
+    margin-bottom: 10px;
+    justify-content: center;
+  }
+  .level-btn {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    border: 2px solid #0f3460;
+    background: #16213e;
+    color: #aaa;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .level-btn:hover { border-color: #e94560; color: #eee; }
+  .level-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+  .level-btn.solved { background: #27ae60; color: #fff; border-color: #27ae60; }
+  .level-btn.solved.active { background: #e94560; border-color: #e94560; }
+  .level-btn .star { font-size: 0.55rem; position: absolute; top: -2px; right: -1px; }
+  .level-btn { position: relative; }
+
+  #status-bar {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 18px;
+    font-size: 1rem;
+  }
+  #status-bar span { color: #aaa; }
+  #status-bar strong { color: #eee; }
+
+  #board-wrapper {
+    display: grid;
+    grid-template-columns: 20px 426px 28px;
+    grid-template-rows: 426px 20px;
+    gap: 0;
+    align-items: center;
+    justify-items: center;
+  }
+  #row-labels {
+    display: flex;
+    flex-direction: column;
+    height: 426px;
+  }
+  #row-labels span {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #556;
+    font-weight: 600;
+  }
+  #col-labels {
+    display: flex;
+    width: 426px;
+  }
+  #col-labels span {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #556;
+    font-weight: 600;
+  }
+  #board {
+    position: relative;
+    width: 426px; height: 426px;
+    background: #16213e;
+    border: 3px solid #0f3460;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #exit-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #e94560;
+    height: 70px;
+    align-self: start;
+    margin-top: 143px;
+  }
+  .cell-grid {
+    position: absolute;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    pointer-events: none;
+  }
+  .cell { border: 1px solid rgba(255,255,255,0.04); }
+  .vehicle {
+    position: absolute;
+    border-radius: 6px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: rgba(0,0,0,0.35);
+    user-select: none;
+    transition: box-shadow 0.15s;
+  }
+  .vehicle:hover { box-shadow: 0 0 12px rgba(255,255,255,0.25); }
+  .vehicle.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 0 20px rgba(255,255,255,0.35); }
+  .vehicle.hint-glow {
+    animation: hintPulse 0.8s ease-in-out 3;
+    z-index: 5;
+  }
+  @keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 0 24px 6px rgba(255,255,0,0.7); }
+  }
+  .vehicle .hint-arrow {
+    position: absolute;
+    font-size: 1.4rem;
+    color: #fff;
+    text-shadow: 0 0 6px rgba(0,0,0,0.8);
+    pointer-events: none;
+  }
+  #controls { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 9px 20px;
+    border: none;
+    border-radius: 6px;
+    background: #0f3460;
+    color: #eee;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover { background: #e94560; }
+  #btn-restart { background: #b8860b; }
+  #btn-restart:hover { background: #d4a017; }
+  #btn-solution { background: #2d6a4f; }
+  #btn-solution:hover { background: #40916c; }
+  #btn-solution.playing { background: #d35400; cursor: not-allowed; }
+  #btn-reset-progress { background: #6b1a1a; font-size: 0.85rem; padding: 9px 14px; }
+  #btn-reset-progress:hover { background: #a33; }
+  .vehicle.solution-move {
+    transition: left 0.57s ease-in-out, top 0.57s ease-in-out;
+  }
+  #win-msg {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 100;
+  }
+  #win-msg.show { display: flex; }
+  #win-msg h2 { font-size: 2.5rem; color: #e94560; margin-bottom: 10px; }
+  #win-msg p { font-size: 1.2rem; margin-bottom: 16px; }
+
+  /* Confetti */
+  #confetti-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 99;
+    overflow: hidden;
+  }
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 10px;
+    height: 10px;
+    opacity: 0;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.5); }
+  }
+</style>
+</head>
+<body>
+<h1>Rush Hour</h1>
+<div id="info">Slide the red car to the right exit</div>
+
+<div id="difficulty-bar">
+  <div class="diff-tab" data-diff="beginner" onclick="selectDifficulty('beginner')">Beginner</div>
+  <div class="diff-tab" data-diff="intermediate" onclick="selectDifficulty('intermediate')">Intermediate</div>
+  <div class="diff-tab" data-diff="advanced" onclick="selectDifficulty('advanced')">Advanced</div>
+  <div class="diff-tab" data-diff="expert" onclick="selectDifficulty('expert')">Expert</div>
+</div>
+
+<div id="level-bar"></div>
+
+<div id="status-bar">
+  <span>Moves: <strong id="move-count">0</strong></span>
+  <span>Best: <strong id="best-count">-</strong></span>
+  <span>Optimal: <strong id="optimal-count">-</strong></span>
+</div>
+
+<div id="board-wrapper">
+  <div id="row-labels">
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+  </div>
+  <div id="board">
+    <div class="cell-grid" id="grid"></div>
+  </div>
+  <div id="exit-arrow">&#9654;</div>
+  <div></div>
+  <div id="col-labels">
+    <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span>
+  </div>
+  <div></div>
+</div>
+
+<div id="controls">
+  <button id="btn-restart" onclick="restartLevel()">Restart</button>
+  <button onclick="prevLevel()">&larr; Prev</button>
+  <button onclick="nextLevelBtn()">Next &rarr;</button>
+  <button onclick="showHint()">&#x1F4A1; Hint</button>
+  <button id="btn-solution" onclick="playSolution()">&#x25B6; Solution</button>
+  <button id="btn-reset-progress" onclick="resetProgress()">Reset Progress</button>
+</div>
+
+<div id="confetti-container"></div>
+<div id="win-msg">
+  <h2>You Win!</h2>
+  <p id="win-text"></p>
+  <button onclick="nextLevelBtn()">Next Level</button>
+</div>
+
+<script>
+const CELL = 70, COLS = 6, ROWS = 6;
+const board = document.getElementById('board');
+const moveCountEl = document.getElementById('move-count');
+const bestCountEl = document.getElementById('best-count');
+const optimalCountEl = document.getElementById('optimal-count');
+const winMsg = document.getElementById('win-msg');
+const winText = document.getElementById('win-text');
+const levelBar = document.getElementById('level-bar');
+
+const COLORS = [
+  '#e94560','#3ec1d3','#f9a826','#6a0572','#48c774',
+  '#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8',
+  '#00b894','#e17055','#0984e3','#636e72','#d35400','#1abc9c'
+];
+
+// ─── PUZZLES BY DIFFICULTY ───
+// First vehicle is always the red target car (horizontal, row 2)
+// Difficulty based on BFS-optimal moves & unique reachable positions
+// Each puzzle starts from its maximally unsolved state (hardest starting position)
+const allPuzzles = {
+  beginner: [
+    // B-1: 2 optimal moves, 1105 unique positions
+    { name: 'B-1', vehicles: [
+      // 4 4 . . . .
+      // . . . . . .
+      // 0 0 1 . . .
+      // 2 . 1 . . .
+      // 2 3 1 . . .
+      // . 3 . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:2, col:2, len:3, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'h' }
+    ]},
+    // B-2: 3 optimal moves, 1392 unique positions
+    { name: 'B-2', vehicles: [
+      // . . . . . .
+      // 3 4 4 . . .
+      // 3 0 0 1 . 2
+      // 3 5 . 1 . 2
+      // . 5 . 1 . 2
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:3, len:3, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:1, col:0, len:3, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' }
+    ]},
+    // B-3: 3 optimal moves, 352 unique positions
+    { name: 'B-3', vehicles: [
+      // . . . . . .
+      // 4 4 4 . . .
+      // 3 0 0 2 . .
+      // 3 . . 2 . .
+      // 3 . . 2 . .
+      // . . 1 1 . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:2, col:3, len:3, ori:'v' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:1, col:0, len:3, ori:'h' }
+    ]},
+    // B-4: 6 optimal moves, 1635 unique positions
+    { name: 'B-4', vehicles: [
+      // . . . . 1 .
+      // . . . . 1 .
+      // . . 0 0 1 5
+      // . . . 2 2 5
+      // . . 4 4 4 5
+      // . . 3 3 3 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' }
+    ]},
+    // B-5: 4 optimal moves, 1831 unique positions
+    { name: 'B-5', vehicles: [
+      // 2 2 2 . 4 4
+      // . 6 6 . . .
+      // . 0 0 5 3 1
+      // . . . 5 3 1
+      // . . . . 3 .
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' }
+    ]},
+    // B-6: 3 optimal moves, 104 unique positions
+    { name: 'B-6', vehicles: [
+      // . . . . . .
+      // . . . 2 . .
+      // . 0 0 2 . 4
+      // 1 . . 3 . 4
+      // 1 . . 3 . 4
+      // 1 . . 3 . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:0, len:3, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:3, col:3, len:3, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' }
+    ]},
+    // B-7: 5 optimal moves, 1330 unique positions
+    { name: 'B-7', vehicles: [
+      // . . 4 . . .
+      // . . 4 3 . 5
+      // 0 0 7 3 . 5
+      // 1 . 7 . . .
+      // 1 . 6 6 6 .
+      // 1 . 2 2 2 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:3, col:0, len:3, ori:'v' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' }
+    ]},
+    // B-8: 4 optimal moves, 853 unique positions
+    { name: 'B-8', vehicles: [
+      // . . . . . 3
+      // . . 2 2 . 3
+      // . . . 0 0 3
+      // . . . 4 4 4
+      // . . . 1 1 1
+      // . . . . . .
+      { row:2, col:3, len:2, ori:'h' },
+      { row:4, col:3, len:3, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:3, col:3, len:3, ori:'h' }
+    ]},
+    // B-9: 4 optimal moves, 17870 unique positions
+    { name: 'B-9', vehicles: [
+      // 7 . . . . 6
+      // 7 . 1 . 4 6
+      // 0 0 1 . 4 3
+      // . . . 5 5 3
+      // . 2 . . . .
+      // . 2 . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' }
+    ]},
+    // B-10: 4 optimal moves, 6709 unique positions
+    { name: 'B-10', vehicles: [
+      // . . . . . .
+      // . 3 3 . . 6
+      // 1 0 0 5 2 6
+      // 1 4 . 5 2 .
+      // . 4 . 5 2 .
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:2, col:3, len:3, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' }
+    ]},
+    // B-11: 3 optimal moves, 3690 unique positions
+    { name: 'B-11', vehicles: [
+      // . . . . 1 1
+      // 4 . . . . 5
+      // 4 . . 0 0 5
+      // 4 . . . . .
+      // . . . 2 2 2
+      // . . 3 3 3 .
+      { row:2, col:3, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:4, col:3, len:3, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:1, col:0, len:3, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' }
+    ]},
+    // B-12: 3 optimal moves, 1524 unique positions
+    { name: 'B-12', vehicles: [
+      // . . . 5 . .
+      // . . . 5 . 1
+      // 4 0 0 3 . 1
+      // 4 . . 3 . .
+      // . . . . . .
+      // . 2 2 . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'v' }
+    ]},
+    // B-13: 4 optimal moves, 2017 unique positions
+    { name: 'B-13', vehicles: [
+      // . . . 3 3 .
+      // . . . . 1 .
+      // . 0 0 6 1 .
+      // . 5 . 6 2 2
+      // . 5 . . . .
+      // . 5 4 4 4 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:3, col:1, len:3, ori:'v' },
+      { row:2, col:3, len:2, ori:'v' }
+    ]},
+    // B-14: 9 optimal moves, 1032 unique positions
+    { name: 'B-14', vehicles: [
+      // . . . . . .
+      // 3 . . . . .
+      // 3 0 0 . 2 .
+      // . . 1 4 2 .
+      // . . 1 4 2 .
+      // . . 1 4 5 5
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:2, len:3, ori:'v' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:3, col:3, len:3, ori:'v' },
+      { row:5, col:4, len:2, ori:'h' }
+    ]},
+    // B-15: 5 optimal moves, 2672 unique positions
+    { name: 'B-15', vehicles: [
+      // . . . . . .
+      // . . . . 2 3
+      // 5 . 0 0 2 3
+      // 5 . . . 2 .
+      // 5 . . 1 1 .
+      // . . . 4 4 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:2, col:0, len:3, ori:'v' }
+    ]},
+    // B-16: 2 optimal moves, 434 unique positions
+    { name: 'B-16', vehicles: [
+      // . . . . . .
+      // . . 2 . 4 4
+      // 0 0 2 . . .
+      // . . . . . .
+      // . . . . . .
+      // 1 1 3 3 . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'h' },
+    ]},
+    // B-17: 2 optimal moves, 707 unique positions
+    { name: 'B-17', vehicles: [
+      // . . . . . .
+      // . . 4 . . .
+      // 0 0 4 . . .
+      // . . 3 3 3 .
+      // 1 . . . . .
+      // 1 . . 2 2 2
+      { row:2, col:0, len:2, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:3, col:2, len:3, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+    ]},
+    // B-18: 2 optimal moves, 1409 unique positions
+    { name: 'B-18', vehicles: [
+      // . . . . . .
+      // . . . . . 2
+      // 3 . . 0 0 2
+      // 3 . . . . .
+      // 3 . 4 4 . .
+      // . . . . 1 1
+      { row:2, col:3, len:2, ori:'h' },
+      { row:5, col:4, len:2, ori:'h' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:4, col:2, len:2, ori:'h' },
+    ]},
+    // B-19: 4 optimal moves, 580 unique positions
+    { name: 'B-19', vehicles: [
+      // . . . . . .
+      // . 4 4 4 . .
+      // 0 0 1 . 3 2
+      // . . 1 . 3 2
+      // . . . . . 2
+      // . . . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:1, col:1, len:3, ori:'h' },
+    ]},
+    // B-20: 4 optimal moves, 3249 unique positions
+    { name: 'B-20', vehicles: [
+      // . . . 5 5 .
+      // . . . . . .
+      // . 0 0 1 3 4
+      // 2 . . 1 3 4
+      // 2 . . 1 . 4
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:3, len:3, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+    ]},
+  ],
+  intermediate: [
+    // I-1: 9 optimal moves, 21662 unique positions
+    { name: 'I-1', vehicles: [
+      // 8 1 1 1 . .
+      // 8 . . . . .
+      // . . 0 0 2 3
+      // 6 . . 9 2 3
+      // 6 4 5 9 2 3
+      // . 4 5 9 7 7
+      { row:2, col:2, len:2, ori:'h' },
+      { row:0, col:1, len:3, ori:'h' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:5, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:3, col:3, len:3, ori:'v' }
+    ]},
+    // I-2: 10 optimal moves, 2047 unique positions
+    { name: 'I-2', vehicles: [
+      // . . 5 5 . .
+      // 1 8 8 8 7 .
+      // 1 3 0 0 7 .
+      // 6 3 . 2 7 .
+      // 6 3 . 2 4 4
+      // . . . . . .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:2, col:1, len:3, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:1, col:1, len:3, ori:'h' }
+    ]},
+    // I-3: 10 optimal moves, 8288 unique positions
+    { name: 'I-3', vehicles: [
+      // . 7 7 7 . .
+      // . . . . 5 .
+      // . 0 0 . 5 .
+      // . 2 2 3 5 .
+      // . . 1 3 4 4
+      // . . 1 6 6 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:0, col:1, len:3, ori:'h' }
+    ]},
+    // I-4: 14 optimal moves, 16517 unique positions
+    { name: 'I-4', vehicles: [
+      // . 9 . 4 4 7
+      // . 9 . 2 . 7
+      // 0 0 5 2 3 1
+      // . . 5 8 3 1
+      // . . . 8 . .
+      // 6 6 6 . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:5, col:0, len:3, ori:'h' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'v' }
+    ]},
+    // I-5: 18 optimal moves, 5888 unique positions
+    { name: 'I-5', vehicles: [
+      // 1 8 4 4 4 .
+      // 1 8 3 3 5 .
+      // 1 0 0 . 5 9
+      // 2 2 6 . 5 9
+      // . . 6 7 7 9
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'v' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:0, col:1, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' }
+    ]},
+    // I-6: 10 optimal moves, 276 unique positions
+    { name: 'I-6', vehicles: [
+      // . A A . . 9
+      // 1 2 7 7 7 9
+      // 1 2 . 0 0 9
+      // 6 2 3 3 4 4
+      // 6 5 5 8 8 8
+      // . . . . . .
+      { row:2, col:3, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:1, col:1, len:3, ori:'v' },
+      { row:3, col:2, len:2, ori:'h' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:4, col:1, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:1, col:2, len:3, ori:'h' },
+      { row:4, col:3, len:3, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' }
+    ]},
+    // I-7: 6 optimal moves, 941 unique positions
+    { name: 'I-7', vehicles: [
+      // . 7 1 . . .
+      // . 7 1 . 5 6
+      // 0 0 1 . 5 6
+      // . 4 4 . . .
+      // . 3 2 2 2 .
+      // . 3 . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:0, col:2, len:3, ori:'v' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'v' }
+    ]},
+    // I-8: 10 optimal moves, 912 unique positions
+    { name: 'I-8', vehicles: [
+      // . 7 . 3 3 .
+      // . 7 1 5 5 5
+      // 0 0 1 . . .
+      // . . 1 . 2 .
+      // . 6 6 6 2 .
+      // . . 4 4 4 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:3, ori:'v' },
+      { row:3, col:4, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:1, col:3, len:3, ori:'h' },
+      { row:4, col:1, len:3, ori:'h' },
+      { row:0, col:1, len:2, ori:'v' }
+    ]},
+    // I-9: 15 optimal moves, 4069 unique positions
+    { name: 'I-9', vehicles: [
+      // . . 7 7 7 .
+      // 9 . . . 4 6
+      // 9 0 0 . 4 6
+      // . 1 1 1 4 6
+      // . . 2 3 3 3
+      // 8 8 2 5 5 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:4, col:3, len:3, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' }
+    ]},
+    // I-10: 9 optimal moves, 2392 unique positions
+    { name: 'I-10', vehicles: [
+      // 2 2 . . 6 .
+      // 4 . . . 6 .
+      // 4 . 0 0 6 .
+      // 8 . . 7 7 .
+      // 8 . . 5 5 .
+      // 8 1 1 3 3 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:3, col:0, len:3, ori:'v' }
+    ]},
+    // I-11: 9 optimal moves, 3011 unique positions
+    { name: 'I-11', vehicles: [
+      // . . . . . .
+      // . . . 5 4 .
+      // 0 0 . 5 4 1
+      // 3 3 . . 4 1
+      // 6 7 7 2 2 1
+      // 6 . . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'h' }
+    ]},
+    // I-12: 8 optimal moves, 5856 unique positions
+    { name: 'I-12', vehicles: [
+      // . 4 4 9 9 9
+      // . . . . 6 .
+      // . 0 0 . 6 1
+      // . . 5 8 8 1
+      // . . 5 2 2 .
+      // 3 3 7 7 7 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:0, col:3, len:3, ori:'h' }
+    ]},
+    // I-13: 8 optimal moves, 12000 unique positions
+    { name: 'I-13', vehicles: [
+      // 5 5 5 A A .
+      // . . 7 7 7 .
+      // 2 0 0 . 1 8
+      // 2 6 6 . 1 8
+      // 2 9 3 3 3 8
+      // . 9 . 4 4 4
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:1, col:2, len:3, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' }
+    ]},
+    // I-14: 14 optimal moves, 78099 unique positions
+    { name: 'I-14', vehicles: [
+      // 6 . . . 8 8
+      // 6 . . 4 1 1
+      // . 0 0 4 . .
+      // . 7 . 4 A A
+      // . 7 5 3 3 9
+      // 2 2 5 . . 9
+      { row:2, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'h' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:1, col:3, len:3, ori:'v' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:4, col:5, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' }
+    ]},
+    // I-15: 12 optimal moves, 7597 unique positions
+    { name: 'I-15', vehicles: [
+      // . . 9 9 . .
+      // . . 8 5 5 .
+      // 0 0 8 . 3 7
+      // . . 6 2 3 7
+      // A 4 6 2 3 7
+      // A 4 6 2 1 1
+      { row:2, col:0, len:2, ori:'h' },
+      { row:5, col:4, len:2, ori:'h' },
+      { row:3, col:3, len:3, ori:'v' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'h' },
+      { row:3, col:2, len:3, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' }
+    ]},
+    // I-16: 8 optimal moves, 190 unique positions
+    { name: 'I-16', vehicles: [
+      // 7 7 7 1 1 .
+      // 4 . . 5 . .
+      // 4 0 0 5 6 .
+      // 3 . . 5 6 .
+      // 3 2 2 2 . .
+      // . . . . . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:4, col:1, len:3, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:1, col:3, len:3, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:0, col:0, len:3, ori:'h' },
+    ]},
+    // I-17: 8 optimal moves, 16197 unique positions
+    { name: 'I-17', vehicles: [
+      // . 6 6 6 1 8
+      // . . 3 3 1 8
+      // 0 0 . 2 1 8
+      // 5 . . 2 4 4
+      // 5 . 7 7 7 .
+      // . . . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:0, col:1, len:3, ori:'h' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+    ]},
+    // I-18: 8 optimal moves, 25396 unique positions
+    { name: 'I-18', vehicles: [
+      // 9 1 1 1 . .
+      // 9 6 6 3 5 7
+      // A 0 0 3 5 7
+      // A 2 2 2 . .
+      // 4 4 4 . . .
+      // . . 8 8 . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:1, len:3, ori:'h' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:4, col:0, len:3, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:2, col:0, len:2, ori:'v' },
+    ]},
+    // I-19: 8 optimal moves, 30900 unique positions
+    { name: 'I-19', vehicles: [
+      // . . . 8 8 7
+      // 3 3 1 . 6 7
+      // 0 0 1 . 6 7
+      // . . 1 . 2 2
+      // . 4 4 . . .
+      // . 5 5 . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:3, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'h' },
+      { row:4, col:1, len:2, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+    ]},
+    // I-20: 9 optimal moves, 1086 unique positions
+    { name: 'I-20', vehicles: [
+      // . 2 2 3 3 6
+      // . . 7 7 A 6
+      // . 1 0 0 A 6
+      // . 1 . 4 4 4
+      // . 1 . 5 5 5
+      // . 9 9 8 8 8
+      { row:2, col:2, len:2, ori:'h' },
+      { row:2, col:1, len:3, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:3, col:3, len:3, ori:'h' },
+      { row:4, col:3, len:3, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+    ]},
+  ],
+  advanced: [
+    // A-1: 15 optimal moves, 1183 unique positions
+    { name: 'A-1', vehicles: [
+      // . . 7 . . .
+      // . . 7 1 1 .
+      // 0 0 7 . 6 .
+      // 8 5 5 . 6 3
+      // 8 . . . 2 3
+      // 4 4 4 . 2 3
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:3, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'v' },
+      { row:3, col:5, len:3, ori:'v' },
+      { row:5, col:0, len:3, ori:'h' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:0, col:2, len:3, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' }
+    ]},
+    // A-2: 21 optimal moves, 1141 unique positions
+    { name: 'A-2', vehicles: [
+      // A A A 9 5 8
+      // . 4 4 9 5 8
+      // 0 0 3 9 5 1
+      // . . 3 2 2 1
+      // B . 7 7 7 1
+      // B . . 6 6 6
+      { row:2, col:0, len:2, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' }
+    ]},
+    // A-3: 15 optimal moves, 9054 unique positions
+    { name: 'A-3', vehicles: [
+      // . . 2 8 8 8
+      // 5 5 2 4 . 7
+      // . 0 0 4 . 7
+      // 3 3 3 A 1 7
+      // 9 . . A 1 .
+      // 9 . 6 6 . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:4, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:3, col:0, len:3, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:1, col:0, len:2, ori:'h' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:0, col:3, len:3, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' }
+    ]},
+    // A-4: 17 optimal moves, 6768 unique positions
+    { name: 'A-4', vehicles: [
+      // . 2 8 8 8 .
+      // A 2 . 5 5 3
+      // A 0 0 . 7 3
+      // 6 1 1 1 7 3
+      // 6 . 9 . . .
+      // . . 9 4 4 4
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:0, col:1, len:2, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:1, col:3, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:1, col:0, len:2, ori:'v' }
+    ]},
+    // A-5: 21 optimal moves, 7412 unique positions
+    { name: 'A-5', vehicles: [
+      // . 5 8 8 8 .
+      // 9 5 . . 4 .
+      // 9 5 0 0 4 1
+      // 3 3 A . 4 1
+      // 7 . A 2 2 .
+      // 7 . 6 6 6 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:0, col:1, len:3, ori:'v' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' }
+    ]},
+    // A-6: 21 optimal moves, 5905 unique positions
+    { name: 'A-6', vehicles: [
+      // 8 1 4 4 7 7
+      // 8 1 6 6 . 2
+      // 8 1 0 0 A 2
+      // 5 5 B 3 A 2
+      // . . B 3 9 9
+      // . . . . . .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:0, col:1, len:3, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' }
+    ]},
+    // A-7: 23 optimal moves, 11480 unique positions
+    { name: 'A-7', vehicles: [
+      // . . 8 4 4 .
+      // 5 A 8 3 3 2
+      // 5 A 0 0 6 2
+      // . . . . 6 .
+      // 9 9 9 . 7 .
+      // . 1 1 1 7 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:5, col:1, len:3, ori:'h' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:4, col:4, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:4, col:0, len:3, ori:'h' },
+      { row:1, col:1, len:2, ori:'v' }
+    ]},
+    // A-8: 17 optimal moves, 9296 unique positions
+    { name: 'A-8', vehicles: [
+      // 6 B B B . .
+      // 6 . 7 7 1 3
+      // 0 0 . 5 1 3
+      // 4 4 4 5 . 3
+      // . 2 A . 8 8
+      // . 2 A 9 9 9
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:3, col:0, len:3, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:0, col:1, len:3, ori:'h' }
+    ]},
+    // A-9: 17 optimal moves, 21642 unique positions
+    { name: 'A-9', vehicles: [
+      // . . . . 2 2
+      // . 1 1 1 8 5
+      // 4 0 0 . 8 5
+      // 4 . A . 8 6
+      // . 7 A 9 9 6
+      // . 7 3 3 3 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:1, col:1, len:3, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:3, col:5, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' }
+    ]},
+    // A-10: 21 optimal moves, 28966 unique positions
+    { name: 'A-10', vehicles: [
+      // . 7 7 7 . .
+      // . . 1 4 6 6
+      // 0 0 1 4 2 5
+      // 9 3 . . 2 5
+      // 9 3 8 8 2 5
+      // . . . . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:2, col:4, len:3, ori:'v' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:1, col:4, len:2, ori:'h' },
+      { row:0, col:1, len:3, ori:'h' },
+      { row:4, col:2, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' }
+    ]},
+    // A-11: 23 optimal moves, 6041 unique positions
+    { name: 'A-11', vehicles: [
+      // 2 2 A 4 3 .
+      // . . A 4 3 .
+      // 7 0 0 4 3 .
+      // 7 . 8 6 6 9
+      // . . 8 5 5 9
+      // . . 1 1 1 9
+      { row:2, col:1, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:0, col:0, len:2, ori:'h' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:3, col:5, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' }
+    ]},
+    // A-12: 18 optimal moves, 1352 unique positions
+    { name: 'A-12', vehicles: [
+      // 8 8 8 9 9 .
+      // 4 A A A 1 .
+      // 4 . 0 0 1 .
+      // 4 6 6 5 2 2
+      // . . . 5 . 3
+      // . 7 7 B B 3
+      { row:2, col:2, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:4, col:5, len:2, ori:'v' },
+      { row:1, col:0, len:3, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:1, col:1, len:3, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' }
+    ]},
+    // A-13: 22 optimal moves, 830 unique positions
+    { name: 'A-13', vehicles: [
+      // 6 2 2 2 5 9
+      // 6 . 3 4 5 9
+      // 0 0 3 4 . .
+      // B A A 8 . 7
+      // B . . 8 . 7
+      // B . 1 1 1 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:0, col:1, len:3, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:0, col:4, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:3, col:5, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:3, col:0, len:3, ori:'v' }
+    ]},
+    // A-14: 30 optimal moves, 6544 unique positions
+    { name: 'A-14', vehicles: [
+      // 8 9 9 3 6 .
+      // 8 . . 3 6 7
+      // 0 0 A 3 . 7
+      // . . A 4 4 4
+      // 2 2 2 . 1 .
+      // B B 5 5 1 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'v' },
+      { row:4, col:0, len:3, ori:'h' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:3, col:3, len:3, ori:'h' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:5, col:0, len:2, ori:'h' }
+    ]},
+    // A-15: 28 optimal moves, 4161 unique positions
+    { name: 'A-15', vehicles: [
+      // 9 . 4 1 1 1
+      // 9 . 4 7 . 8
+      // 9 0 0 7 . 8
+      // 6 6 5 5 . 8
+      // . 3 . . . .
+      // . 3 . 2 2 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:3, len:3, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:0, col:0, len:3, ori:'v' }
+    ]},
+    // A-16: 15 optimal moves, 8215 unique positions
+    { name: 'A-16', vehicles: [
+      // . . A A 4 4
+      // 8 2 1 1 5 5
+      // 8 2 0 0 . 9
+      // . 7 7 7 . 9
+      // . . 6 . . 9
+      // . . 6 3 3 3
+      { row:2, col:2, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:1, col:1, len:2, ori:'v' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+    ]},
+    // A-17: 16 optimal moves, 5351 unique positions
+    { name: 'A-17', vehicles: [
+      // . . A A A 1
+      // . 8 8 . 2 1
+      // . 0 0 . 2 9
+      // . . 7 . 2 9
+      // 6 6 7 . 4 4
+      // . 3 3 5 5 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:4, col:0, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:0, col:2, len:3, ori:'h' },
+    ]},
+    // A-18: 16 optimal moves, 8650 unique positions
+    { name: 'A-18', vehicles: [
+      // . . 1 1 . .
+      // . 2 2 2 8 6
+      // . 0 0 . 8 6
+      // . 3 3 3 8 6
+      // . . 7 4 5 5
+      // . . 7 4 9 9
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:1, col:1, len:3, ori:'h' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:4, col:3, len:2, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:5, col:4, len:2, ori:'h' },
+    ]},
+    // A-19: 17 optimal moves, 7343 unique positions
+    { name: 'A-19', vehicles: [
+      // . . 5 5 9 .
+      // . . 1 1 9 7
+      // . 4 B 0 0 7
+      // A 4 B 2 2 7
+      // A 4 B 6 3 3
+      // 8 8 8 6 . .
+      { row:2, col:3, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:2, col:1, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:4, col:3, len:2, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:5, col:0, len:3, ori:'h' },
+      { row:0, col:4, len:2, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:2, col:2, len:3, ori:'v' },
+    ]},
+    // A-20: 20 optimal moves, 6143 unique positions
+    { name: 'A-20', vehicles: [
+      // . . . 8 6 6
+      // 7 . . 8 4 9
+      // 7 0 0 8 4 9
+      // 3 2 2 2 4 9
+      // 3 . 1 5 5 .
+      // . . 1 A A .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:4, col:2, len:2, ori:'v' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+    ]},
+  ],
+  expert: [
+    // E-1: 23 optimal moves, 1478 unique positions
+    { name: 'E-1', vehicles: [
+      // 8 8 8 B B A
+      // 3 3 . . . A
+      // 2 . 0 0 C 9
+      // 2 . 5 1 C 9
+      // 6 7 5 1 C 9
+      // 6 7 5 1 4 4
+      { row:2, col:2, len:2, ori:'h' },
+      { row:3, col:3, len:3, ori:'v' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:1, col:0, len:2, ori:'h' },
+      { row:5, col:4, len:2, ori:'h' },
+      { row:3, col:2, len:3, ori:'v' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'v' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:2, col:4, len:3, ori:'v' }
+    ]},
+    // E-2: 27 optimal moves, 13397 unique positions
+    { name: 'E-2', vehicles: [
+      // B B B 4 4 1
+      // . . . . 2 1
+      // 5 0 0 . 2 8
+      // 5 . 3 9 9 8
+      // . . 3 7 A A
+      // 6 6 6 7 . .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:5, col:0, len:3, ori:'h' },
+      { row:4, col:3, len:2, ori:'v' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'h' }
+    ]},
+    // E-3: 25 optimal moves, 18660 unique positions
+    { name: 'E-3', vehicles: [
+      // . 9 5 5 . 3
+      // . 9 4 . . 3
+      // 0 0 4 A . 3
+      // . . 4 A 6 6
+      // 1 8 8 8 2 .
+      // 1 7 7 7 2 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:4, col:4, len:2, ori:'v' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:1, col:2, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:5, col:1, len:3, ori:'h' },
+      { row:4, col:1, len:3, ori:'h' },
+      { row:0, col:1, len:2, ori:'v' },
+      { row:2, col:3, len:2, ori:'v' }
+    ]},
+    // E-4: 26 optimal moves, 7943 unique positions
+    { name: 'E-4', vehicles: [
+      // . 9 9 2 . 3
+      // . . 8 2 . 3
+      // 5 6 8 0 0 3
+      // 5 6 A 1 7 7
+      // . . A 1 4 4
+      // . . . . . .
+      { row:2, col:3, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'v' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:2, col:0, len:2, ori:'v' },
+      { row:2, col:1, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' }
+    ]},
+    // E-5: 30 optimal moves, 1887 unique positions
+    { name: 'E-5', vehicles: [
+      // . 6 6 1 1 1
+      // . 9 9 9 5 8
+      // 0 0 7 . 5 8
+      // . 2 7 . A A
+      // . 2 4 4 4 B
+      // . . 3 3 . B
+      { row:2, col:0, len:2, ori:'h' },
+      { row:0, col:3, len:3, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:1, col:1, len:3, ori:'h' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:4, col:5, len:2, ori:'v' }
+    ]},
+    // E-6: 28 optimal moves, 3806 unique positions
+    { name: 'E-6', vehicles: [
+      // 9 6 5 5 5 2
+      // 9 6 . . 3 2
+      // 9 6 0 0 3 2
+      // 4 4 8 . 3 .
+      // . . 8 A A .
+      // . 7 7 1 1 .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:0, col:1, len:3, ori:'v' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:0, col:0, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' }
+    ]},
+    // E-7: 23 optimal moves, 7144 unique positions
+    { name: 'E-7', vehicles: [
+      // . . 5 5 8 4
+      // B . 3 3 8 4
+      // B 0 0 1 8 4
+      // 7 . 6 1 2 2
+      // 7 . 6 1 A A
+      // . . 9 9 9 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:3, len:3, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:0, col:4, len:3, ori:'v' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' }
+    ]},
+    // E-8: 27 optimal moves, 61608 unique positions
+    { name: 'E-8', vehicles: [
+      // . . 2 2 2 .
+      // . B B . 7 .
+      // 0 0 A 4 7 .
+      // 5 . A 4 9 9
+      // 5 6 6 3 3 8
+      // 1 1 C C . 8
+      { row:2, col:0, len:2, ori:'h' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:3, col:0, len:2, ori:'v' },
+      { row:4, col:1, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:4, col:5, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:5, col:2, len:2, ori:'h' }
+    ]},
+    // E-9: 33 optimal moves, 1229 unique positions
+    { name: 'E-9', vehicles: [
+      // A 4 4 6 2 .
+      // A . 3 6 2 .
+      // 0 0 3 6 . .
+      // . B B B 9 9
+      // 7 7 7 C C 8
+      // 5 5 5 1 1 8
+      { row:2, col:0, len:2, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'v' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:5, col:0, len:3, ori:'h' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:4, col:0, len:3, ori:'h' },
+      { row:4, col:5, len:2, ori:'v' },
+      { row:3, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:3, col:1, len:3, ori:'h' },
+      { row:4, col:3, len:2, ori:'h' }
+    ]},
+    // E-10: 24 optimal moves, 11250 unique positions
+    { name: 'E-10', vehicles: [
+      // . . 2 8 8 8
+      // 3 . 2 . 7 .
+      // 3 0 0 5 7 .
+      // . 4 4 5 7 .
+      // . 9 . 1 1 .
+      // . 9 6 6 6 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:3, col:1, len:2, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:5, col:2, len:3, ori:'h' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:0, col:3, len:3, ori:'h' },
+      { row:4, col:1, len:2, ori:'v' }
+    ]},
+    // E-11: 29 optimal moves, 9229 unique positions
+    { name: 'E-11', vehicles: [
+      // . . 5 6 6 6
+      // . . 5 A 8 .
+      // 0 0 4 A 8 9
+      // . C 4 1 1 9
+      // 3 C 2 2 . 9
+      // 3 B B 7 7 .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'h' },
+      { row:4, col:2, len:2, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:0, col:3, len:3, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' }
+    ]},
+    // E-12: 26 optimal moves, 4693 unique positions
+    { name: 'E-12', vehicles: [
+      // 4 4 2 3 . .
+      // . . 2 3 . .
+      // 7 0 0 3 . .
+      // 7 . . 5 5 5
+      // 7 . 6 6 6 8
+      // . . . 1 1 8
+      { row:2, col:1, len:2, ori:'h' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:0, col:3, len:3, ori:'v' },
+      { row:0, col:0, len:2, ori:'h' },
+      { row:3, col:3, len:3, ori:'h' },
+      { row:4, col:2, len:3, ori:'h' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:4, col:5, len:2, ori:'v' }
+    ]},
+    // E-13: 27 optimal moves, 9867 unique positions
+    { name: 'E-13', vehicles: [
+      // 9 . 4 4 . .
+      // 9 5 5 A 3 .
+      // 0 0 8 A 3 6
+      // 1 1 8 . . 6
+      // 2 2 2 7 7 6
+      // B B B . . .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:4, col:0, len:3, ori:'h' },
+      { row:1, col:4, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:2, col:2, len:2, ori:'v' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:5, col:0, len:3, ori:'h' }
+    ]},
+    // E-14: 43 optimal moves, 16930 unique positions
+    { name: 'E-14', vehicles: [
+      // A . 1 1 1 .
+      // A C C 5 6 .
+      // 0 0 . 5 6 2
+      // 9 9 3 4 6 2
+      // . . 3 4 7 7
+      // . 8 8 B B .
+      { row:2, col:0, len:2, ori:'h' },
+      { row:0, col:2, len:3, ori:'h' },
+      { row:2, col:5, len:2, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:1, col:4, len:3, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:1, col:1, len:2, ori:'h' }
+    ]},
+    // E-15: 27 optimal moves, 4057 unique positions
+    { name: 'E-15', vehicles: [
+      // 1 1 1 7 7 A
+      // . . 9 . . A
+      // 0 0 9 B 8 .
+      // 4 4 4 B 8 3
+      // 5 . 6 6 . 3
+      // 5 . . 2 2 2
+      { row:2, col:0, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'h' },
+      { row:5, col:3, len:3, ori:'h' },
+      { row:3, col:5, len:2, ori:'v' },
+      { row:3, col:0, len:3, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:4, col:2, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:1, col:2, len:2, ori:'v' },
+      { row:0, col:5, len:2, ori:'v' },
+      { row:2, col:3, len:2, ori:'v' }
+    ]},
+    // E-16: 23 optimal moves, 6142 unique positions
+    { name: 'E-16', vehicles: [
+      // 9 5 5 8 8 C
+      // 9 . . 7 . C
+      // 9 0 0 7 4 C
+      // 2 2 A 1 4 .
+      // . . A 1 3 3
+      // . 6 6 B B .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:3, col:3, len:2, ori:'v' },
+      { row:3, col:0, len:2, ori:'h' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'h' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:0, col:0, len:3, ori:'v' },
+      { row:3, col:2, len:2, ori:'v' },
+      { row:5, col:3, len:2, ori:'h' },
+      { row:0, col:5, len:3, ori:'v' },
+    ]},
+    // E-17: 23 optimal moves, 8839 unique positions
+    { name: 'E-17', vehicles: [
+      // B . C 6 6 .
+      // B . C 1 1 1
+      // 3 0 0 4 . 9
+      // 3 8 . 4 2 9
+      // 3 8 5 5 2 9
+      // . . 7 7 A A
+      { row:2, col:1, len:2, ori:'h' },
+      { row:1, col:3, len:3, ori:'h' },
+      { row:3, col:4, len:2, ori:'v' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:4, col:2, len:2, ori:'h' },
+      { row:0, col:3, len:2, ori:'h' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:2, col:5, len:3, ori:'v' },
+      { row:5, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:0, col:2, len:2, ori:'v' },
+    ]},
+    // E-18: 23 optimal moves, 28958 unique positions
+    { name: 'E-18', vehicles: [
+      // . . 3 3 A A
+      // 5 4 4 C C 2
+      // 5 . 0 0 8 2
+      // . 7 1 1 8 2
+      // . 7 . B 9 9
+      // . 6 6 B . .
+      { row:2, col:2, len:2, ori:'h' },
+      { row:3, col:2, len:2, ori:'h' },
+      { row:1, col:5, len:3, ori:'v' },
+      { row:0, col:2, len:2, ori:'h' },
+      { row:1, col:1, len:2, ori:'h' },
+      { row:1, col:0, len:2, ori:'v' },
+      { row:5, col:1, len:2, ori:'h' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:2, col:4, len:2, ori:'v' },
+      { row:4, col:4, len:2, ori:'h' },
+      { row:0, col:4, len:2, ori:'h' },
+      { row:4, col:3, len:2, ori:'v' },
+      { row:1, col:3, len:2, ori:'h' },
+    ]},
+    // E-19: 30 optimal moves, 7398 unique positions
+    { name: 'E-19', vehicles: [
+      // 5 . B C C C
+      // 5 . B 9 4 4
+      // 1 0 0 9 . .
+      // 1 3 . . 2 6
+      // 1 3 8 8 2 6
+      // 7 7 A A 2 .
+      { row:2, col:1, len:2, ori:'h' },
+      { row:2, col:0, len:3, ori:'v' },
+      { row:3, col:4, len:3, ori:'v' },
+      { row:3, col:1, len:2, ori:'v' },
+      { row:1, col:4, len:2, ori:'h' },
+      { row:0, col:0, len:2, ori:'v' },
+      { row:3, col:5, len:2, ori:'v' },
+      { row:5, col:0, len:2, ori:'h' },
+      { row:4, col:2, len:2, ori:'h' },
+      { row:1, col:3, len:2, ori:'v' },
+      { row:5, col:2, len:2, ori:'h' },
+      { row:0, col:2, len:2, ori:'v' },
+      { row:0, col:3, len:3, ori:'h' },
+    ]},
+    // E-20: 30 optimal moves, 13545 unique positions
+    { name: 'E-20', vehicles: [
+      // . 8 . . . .
+      // . 8 6 6 . 2
+      // 0 0 3 7 . 2
+      // . . 3 7 A A
+      // 5 . 3 9 9 1
+      // 5 4 4 4 . 1
+      { row:2, col:0, len:2, ori:'h' },
+      { row:4, col:5, len:2, ori:'v' },
+      { row:1, col:5, len:2, ori:'v' },
+      { row:2, col:2, len:3, ori:'v' },
+      { row:5, col:1, len:3, ori:'h' },
+      { row:4, col:0, len:2, ori:'v' },
+      { row:1, col:2, len:2, ori:'h' },
+      { row:2, col:3, len:2, ori:'v' },
+      { row:0, col:1, len:2, ori:'v' },
+      { row:4, col:3, len:2, ori:'h' },
+      { row:3, col:4, len:2, ori:'h' },
+    ]},
+  ],
+};
+
+// BFS solver — returns { depth, firstMove: {idx, newPos} } or { depth: -1 }
+// When called with returnPath=false (default), just returns depth count.
+// mode: 'depth' = just count, 'first' = first move, 'full' = full path
+function bfsSolve(vehicleDefs, currentPositions, mode) {
+  const n = vehicleDefs.length;
+  const init = currentPositions || vehicleDefs.map(v => v.ori === 'h' ? v.col : v.row);
+  const initKey = init.join(',');
+  const visited = new Map();
+  visited.set(initKey, null);
+  let queue = [init];
+  let depth = 0;
+
+  function getNeighbors(pos) {
+    const results = [];
+    const g = Array.from({length: ROWS}, () => Array(COLS).fill(-1));
+    for (let i = 0; i < n; i++) {
+      const v = vehicleDefs[i];
+      for (let j = 0; j < v.len; j++) {
+        if (v.ori === 'h') g[v.row][pos[i] + j] = i;
+        else g[pos[i] + j][v.col] = i;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      const v = vehicleDefs[i], p = pos[i];
+      if (v.ori === 'h') {
+        for (let c = p - 1; c >= 0; c--) {
+          if (g[v.row][c] !== -1) break;
+          const np = pos.slice(); np[i] = c; results.push(np);
+        }
+        for (let c = p + 1; c <= COLS - v.len; c++) {
+          if (g[v.row][c + v.len - 1] !== -1) break;
+          const np = pos.slice(); np[i] = c; results.push(np);
+        }
+      } else {
+        for (let r = p - 1; r >= 0; r--) {
+          if (g[r][v.col] !== -1) break;
+          const np = pos.slice(); np[i] = r; results.push(np);
+        }
+        for (let r = p + 1; r <= ROWS - v.len; r++) {
+          if (g[r + v.len - 1][v.col] !== -1) break;
+          const np = pos.slice(); np[i] = r; results.push(np);
+        }
+      }
+    }
+    return results;
+  }
+
+  function tracePath(endKey) {
+    const path = [];
+    let cur = endKey;
+    while (cur !== null) {
+      path.push(cur.split(',').map(Number));
+      cur = visited.get(cur);
+    }
+    path.reverse();
+    return path;
+  }
+
+  while (queue.length > 0) {
+    const next = [];
+    for (const pos of queue) {
+      if (pos[0] + vehicleDefs[0].len === COLS) {
+        if (mode === 'depth' || !mode) return { depth };
+        const path = tracePath(pos.join(','));
+        if (mode === 'full') return { depth, path };
+        // mode === 'first'
+        if (path.length < 2) return { depth, firstMove: null };
+        for (let i = 0; i < n; i++) {
+          if (path[1][i] !== path[0][i]) {
+            return { depth, firstMove: { idx: i, newPos: path[1][i] } };
+          }
+        }
+        return { depth, firstMove: null };
+      }
+      for (const np of getNeighbors(pos)) {
+        const k = np.join(',');
+        if (!visited.has(k)) {
+          visited.set(k, pos.join(','));
+          next.push(np);
+        }
+      }
+    }
+    queue = next;
+    depth++;
+  }
+  return { depth: -1 };
+}
+
+function solveOptimal(vehicleDefs) {
+  return bfsSolve(vehicleDefs, null, 'depth').depth;
+}
+
+let currentOptimal = 0;
+let vehicles = [];
+let moves = 0;
+let currentDifficulty = 'beginner';
+let currentLevelIdx = 0;
+let dragging = null;
+let solutionPlaying = false;
+let solved = {}; // key: "difficulty-idx" -> best moves
+let bestMoves = {}; // key: "difficulty-idx" -> best score
+
+// Load saved progress
+try {
+  const saved = localStorage.getItem('rushHourProgress');
+  if (saved) {
+    const data = JSON.parse(saved);
+    solved = data.solved || {};
+    bestMoves = data.bestMoves || {};
+  }
+} catch(e) {}
+
+function saveProgress() {
+  try {
+    localStorage.setItem('rushHourProgress', JSON.stringify({ solved, bestMoves }));
+  } catch(e) {}
+}
+
+// Precompute optimal moves for all puzzles
+const optimalCache = {};
+for (const [diff, puzzles] of Object.entries(allPuzzles)) {
+  puzzles.forEach((p, i) => {
+    optimalCache[diff + '-' + i] = solveOptimal(p.vehicles);
+  });
+}
+
+// Build grid cells
+const grid = document.getElementById('grid');
+for (let i = 0; i < 36; i++) {
+  const d = document.createElement('div');
+  d.className = 'cell';
+  grid.appendChild(d);
+}
+
+function selectDifficulty(diff) {
+  currentDifficulty = diff;
+  currentLevelIdx = 0;
+  updateTabs();
+  updateLevelBar();
+  loadPuzzle();
+}
+
+function updateTabs() {
+  document.querySelectorAll('.diff-tab').forEach(tab => {
+    tab.classList.remove('active-beginner','active-intermediate','active-advanced','active-expert');
+    if (tab.dataset.diff === currentDifficulty) {
+      tab.classList.add('active-' + currentDifficulty);
+    }
+  });
+}
+
+function updateLevelBar() {
+  levelBar.innerHTML = '';
+  const puzzles = allPuzzles[currentDifficulty];
+  puzzles.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    btn.textContent = i + 1;
+    const key = currentDifficulty + '-' + i;
+    if (solved[key]) btn.classList.add('solved');
+    if (i === currentLevelIdx) btn.classList.add('active');
+    // Star for optimal solve
+    if (bestMoves[key] && bestMoves[key] <= optimalCache[key]) {
+      const star = document.createElement('span');
+      star.className = 'star';
+      star.textContent = '\u2B50';
+      btn.appendChild(star);
+    }
+    btn.onclick = () => { currentLevelIdx = i; updateLevelBar(); loadPuzzle(); };
+    levelBar.appendChild(btn);
+  });
+}
+
+function occupancyGrid() {
+  const g = Array.from({length: ROWS}, () => Array(COLS).fill(-1));
+  vehicles.forEach((v, idx) => {
+    for (let i = 0; i < v.len; i++) {
+      const r = v.ori === 'v' ? v.row + i : v.row;
+      const c = v.ori === 'h' ? v.col + i : v.col;
+      if (r >= 0 && r < ROWS && c >= 0 && c < COLS) g[r][c] = idx;
+    }
+  });
+  return g;
+}
+
+function render() {
+  board.querySelectorAll('.vehicle').forEach(e => e.remove());
+  vehicles.forEach((v, idx) => {
+    const el = document.createElement('div');
+    el.className = 'vehicle';
+    el.style.background = COLORS[idx % COLORS.length];
+    el.style.left = v.col * CELL + 'px';
+    el.style.top = v.row * CELL + 'px';
+    el.style.width = (v.ori === 'h' ? v.len * CELL : CELL) + 'px';
+    el.style.height = (v.ori === 'v' ? v.len * CELL : CELL) + 'px';
+    el.dataset.idx = idx;
+    el.textContent = idx === 0 ? 'X' : '';
+    el.addEventListener('pointerdown', onPointerDown);
+    board.appendChild(el);
+  });
+  moveCountEl.textContent = moves;
+  const key = currentDifficulty + '-' + currentLevelIdx;
+  bestCountEl.textContent = bestMoves[key] || '-';
+  optimalCountEl.textContent = currentOptimal > 0 ? currentOptimal : '-';
+}
+
+function onPointerDown(e) {
+  if (solutionPlaying) return;
+  e.preventDefault();
+  const idx = parseInt(e.target.dataset.idx);
+  const v = vehicles[idx];
+  dragging = { idx, startX: e.clientX, startY: e.clientY, origCol: v.col, origRow: v.row };
+  e.target.classList.add('dragging');
+  e.target.setPointerCapture(e.pointerId);
+  e.target.addEventListener('pointermove', onPointerMove);
+  e.target.addEventListener('pointerup', onPointerUp);
+}
+
+function onPointerMove(e) {
+  if (!dragging) return;
+  const v = vehicles[dragging.idx];
+  const dx = e.clientX - dragging.startX;
+  const dy = e.clientY - dragging.startY;
+  const el = e.target;
+  if (v.ori === 'h') {
+    el.style.left = (dragging.origCol * CELL + dx) + 'px';
+  } else {
+    el.style.top = (dragging.origRow * CELL + dy) + 'px';
+  }
+}
+
+function clampPosition(idx, desired) {
+  const v = vehicles[idx];
+  const g = occupancyGrid();
+  for (let i = 0; i < v.len; i++) {
+    const r = v.ori === 'v' ? v.row + i : v.row;
+    const c = v.ori === 'h' ? v.col + i : v.col;
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) g[r][c] = -1;
+  }
+  if (v.ori === 'h') {
+    let col = Math.max(0, Math.min(COLS - v.len, desired));
+    const dir = col > v.col ? 1 : -1;
+    let best = v.col;
+    for (let c = v.col + dir; dir > 0 ? c <= col : c >= col; c += dir) {
+      let blocked = false;
+      for (let i = 0; i < v.len; i++) {
+        const cc = c + i;
+        if (cc < 0 || cc >= COLS || g[v.row][cc] !== -1) { blocked = true; break; }
+      }
+      if (blocked) break;
+      best = c;
+    }
+    return best;
+  } else {
+    let row = Math.max(0, Math.min(ROWS - v.len, desired));
+    const dir = row > v.row ? 1 : -1;
+    let best = v.row;
+    for (let r = v.row + dir; dir > 0 ? r <= row : r >= row; r += dir) {
+      let blocked = false;
+      for (let i = 0; i < v.len; i++) {
+        const rr = r + i;
+        if (rr < 0 || rr >= ROWS || g[rr][v.col] !== -1) { blocked = true; break; }
+      }
+      if (blocked) break;
+      best = r;
+    }
+    return best;
+  }
+}
+
+function onPointerUp(e) {
+  if (!dragging) return;
+  const idx = dragging.idx;
+  const v = vehicles[idx];
+  const dx = e.clientX - dragging.startX;
+  const dy = e.clientY - dragging.startY;
+  if (v.ori === 'h') {
+    const newPos = clampPosition(idx, Math.round(dragging.origCol + dx / CELL));
+    if (newPos !== v.col) { v.col = newPos; moves++; }
+  } else {
+    const newPos = clampPosition(idx, Math.round(dragging.origRow + dy / CELL));
+    if (newPos !== v.row) { v.row = newPos; moves++; }
+  }
+  e.target.classList.remove('dragging');
+  e.target.removeEventListener('pointermove', onPointerMove);
+  e.target.removeEventListener('pointerup', onPointerUp);
+  dragging = null;
+  render();
+  checkWin();
+}
+
+function checkWin() {
+  const target = vehicles[0];
+  if (target.col + target.len === COLS) {
+    const key = currentDifficulty + '-' + currentLevelIdx;
+    solved[key] = true;
+    if (!bestMoves[key] || moves < bestMoves[key]) {
+      bestMoves[key] = moves;
+    }
+    saveProgress();
+    updateLevelBar();
+
+    const diffLabel = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+    winText.textContent = `${diffLabel} #${currentLevelIdx + 1} solved in ${moves} moves!`;
+    winMsg.querySelector('h2').textContent = 'You Win!';
+    launchConfetti();
+    winMsg.classList.add('show');
+  }
+}
+
+function loadPuzzle() {
+  winMsg.classList.remove('show');
+  moves = 0;
+  const puzzles = allPuzzles[currentDifficulty];
+  const p = puzzles[currentLevelIdx % puzzles.length];
+  vehicles = p.vehicles.map(v => ({ row: v.row, col: v.col, len: v.len, ori: v.ori }));
+  currentOptimal = optimalCache[currentDifficulty + '-' + currentLevelIdx] || solveOptimal(p.vehicles);
+  render();
+}
+
+function restartLevel() {
+  loadPuzzle();
+}
+
+function prevLevel() {
+  const puzzles = allPuzzles[currentDifficulty];
+  currentLevelIdx = (currentLevelIdx - 1 + puzzles.length) % puzzles.length;
+  updateLevelBar();
+  loadPuzzle();
+}
+
+function nextLevelBtn() {
+  winMsg.classList.remove('show');
+  const puzzles = allPuzzles[currentDifficulty];
+  currentLevelIdx = (currentLevelIdx + 1) % puzzles.length;
+  updateLevelBar();
+  loadPuzzle();
+}
+
+function launchConfetti() {
+  const container = document.getElementById('confetti-container');
+  container.innerHTML = '';
+  const colors = ['#e94560','#3ec1d3','#f9a826','#48c774','#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#00b894'];
+  const shapes = ['square','circle'];
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const left = Math.random() * 100;
+    const size = 6 + Math.random() * 8;
+    const duration = 1.5 + Math.random() * 2;
+    const delay = Math.random() * 0.8;
+    piece.style.left = left + '%';
+    piece.style.width = size + 'px';
+    piece.style.height = size + 'px';
+    piece.style.background = color;
+    piece.style.borderRadius = shape === 'circle' ? '50%' : '2px';
+    piece.style.animationDuration = duration + 's';
+    piece.style.animationDelay = delay + 's';
+    container.appendChild(piece);
+  }
+  setTimeout(() => { container.innerHTML = ''; }, 4000);
+}
+
+function playSolution() {
+  if (solutionPlaying) return;
+  // Restart puzzle first so we animate from the beginning
+  const puzzles = allPuzzles[currentDifficulty];
+  const p = puzzles[currentLevelIdx % puzzles.length];
+  vehicles = p.vehicles.map(v => ({ row: v.row, col: v.col, len: v.len, ori: v.ori }));
+  moves = 0;
+  render();
+
+  const curPos = vehicles.map(v => v.ori === 'h' ? v.col : v.row);
+  const result = bfsSolve(p.vehicles, curPos, 'full');
+  if (result.depth <= 0 || !result.path || result.path.length < 2) return;
+
+  solutionPlaying = true;
+  const btn = document.getElementById('btn-solution');
+  btn.classList.add('playing');
+  btn.textContent = 'Playing...';
+
+  const path = result.path;
+  let step = 1;
+
+  function animateStep() {
+    if (step >= path.length) {
+      solutionPlaying = false;
+      btn.classList.remove('playing');
+      btn.textContent = '\u25B6 Solution';
+      return;
+    }
+    const prev = path[step - 1];
+    const cur = path[step];
+    // Find which vehicle moved
+    let movedIdx = -1;
+    for (let i = 0; i < cur.length; i++) {
+      if (cur[i] !== prev[i]) { movedIdx = i; break; }
+    }
+    if (movedIdx === -1) { step++; animateStep(); return; }
+
+    const v = vehicles[movedIdx];
+    const vDef = p.vehicles[movedIdx];
+    // Update internal state
+    if (vDef.ori === 'h') v.col = cur[movedIdx];
+    else v.row = cur[movedIdx];
+    moves++;
+    moveCountEl.textContent = moves;
+
+    // Animate the DOM element
+    const els = board.querySelectorAll('.vehicle');
+    const el = els[movedIdx];
+    if (el) {
+      el.classList.add('solution-move');
+      el.style.left = v.col * CELL + 'px';
+      el.style.top = v.row * CELL + 'px';
+    }
+
+    step++;
+    if (step < path.length) {
+      setTimeout(animateStep, 714);
+    } else {
+      // Final step done — show solution complete (no credit)
+      setTimeout(() => {
+        solutionPlaying = false;
+        btn.classList.remove('playing');
+        btn.textContent = '\u25B6 Solution';
+        const diffLabel = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+        winText.textContent = `${diffLabel} #${currentLevelIdx + 1} — Solution complete in ${moves} moves.`;
+        winMsg.querySelector('h2').textContent = 'Solution Complete';
+        winMsg.classList.add('show');
+      }, 714);
+    }
+  }
+
+  // Start after a brief pause
+  setTimeout(animateStep, 300);
+}
+
+function showHint() {
+  // Get current positions from live vehicle state
+  const puzzleDefs = allPuzzles[currentDifficulty][currentLevelIdx % allPuzzles[currentDifficulty].length].vehicles;
+  const curPos = vehicles.map(v => v.ori === 'h' ? v.col : v.row);
+  const result = bfsSolve(puzzleDefs, curPos, 'first');
+
+  if (result.depth <= 0 || !result.firstMove) return; // already solved or unsolvable
+
+  const { idx, newPos } = result.firstMove;
+  const v = vehicles[idx];
+  const vEl = board.querySelectorAll('.vehicle')[idx];
+  if (!vEl) return;
+
+  // Determine arrow direction
+  let arrow;
+  if (v.ori === 'h') {
+    arrow = newPos > v.col ? '\u2192' : '\u2190'; // → or ←
+  } else {
+    arrow = newPos > v.row ? '\u2193' : '\u2191'; // ↓ or ↑
+  }
+
+  // Remove any existing hints
+  board.querySelectorAll('.hint-arrow').forEach(el => el.remove());
+  board.querySelectorAll('.hint-glow').forEach(el => el.classList.remove('hint-glow'));
+
+  // Add glow and arrow
+  vEl.classList.add('hint-glow');
+  const arrowEl = document.createElement('span');
+  arrowEl.className = 'hint-arrow';
+  arrowEl.textContent = arrow;
+  vEl.appendChild(arrowEl);
+
+  // Clean up after animation
+  setTimeout(() => {
+    vEl.classList.remove('hint-glow');
+    arrowEl.remove();
+  }, 2500);
+}
+
+function resetProgress() {
+  if (!confirm('Clear all progress? This will reset solved levels and best scores.')) return;
+  solved = {};
+  bestMoves = {};
+  saveProgress();
+  updateLevelBar();
+  render();
+}
+
+// Init
+updateTabs();
+updateLevelBar();
+loadPuzzle();
+</script>
+</body>
+</html>
